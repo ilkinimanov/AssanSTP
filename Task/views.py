@@ -9,7 +9,7 @@ from User.models import User
 
 
 @api_view(http_method_names=['GET', 'POST'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def TaskView(request, **kwargs):
     if request.method == 'GET':
         if 'pk' in kwargs.keys():
@@ -61,7 +61,7 @@ def TaskView(request, **kwargs):
                 body=request.data.get('body'),
                 author=request.user,
                 deadline=request.data.get('deadline'),
-                status=request.data.get('status')
+                status=request.data.get('status'),
             )
 
             task.save()
@@ -99,7 +99,7 @@ def TaskView(request, **kwargs):
 
 
 @api_view(['GET', 'POST', 'DELETE', 'PUT'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def SubtaskView(request, **kwargs):
     if request.method == 'GET':
         if 'pk' in kwargs:
