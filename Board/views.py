@@ -8,11 +8,14 @@ from rest_framework.status import (HTTP_200_OK,
                                    HTTP_403_FORBIDDEN)
 from .models import Board
 from .serializers import BoardSerializer
-from django.core.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied
+from Task.serializers import TaskSerializer
+from django.db import models
+from User.models import User
 
 
-@permission_classes([IsAuthenticated])
 @api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def BoardView(request, **kwargs):
     if request.method == 'GET':
         if 'pk' in kwargs:
@@ -44,28 +47,41 @@ def BoardView(request, **kwargs):
                     'message': 'Internal server error'
                 }, status=HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            boards = Board.objects.all()
+            try:
+                boards = Board.objects.all()
+                filtered_boards = []
 
-            boards = BoardSerializer(boards, many=True).data
+                for board in boards:
+                    filtered_tasks = [task for task in board.tasks.all() if task.author == request.user or request.user in task.users.all()]
+                    if filtered_tasks:
+                        board.filtered_tasks = filtered_tasks
+                        filtered_boards.append(board)
 
-            return Response({
-                'status': 'success',
-                'data': {
-                    'boards': boards
-                }
-            }, status=HTTP_200_OK)
+                boards = []
+                for board in filtered_boards:
+                    board_data = BoardSerializer(board).data
+                    board_data['tasks'] = TaskSerializer(board.filtered_tasks, many=True).data
+                    boards.append(board_data)
+
+                return Response({
+                    'status': 'success',
+                    'data': {
+                        'boards': boards
+                    }
+                }, status=HTTP_200_OK)
+
+            except Exception as error:
+                return Response({
+                    'status': 'error',
+                    'message': 'Internal server error'
+                })
 
     if request.method == 'POST':
         try:
             user = request.user
             board = Board.objects.create(
                 title=request.data.get('title'),
-                author=user
             )
-
-            board.users.set(request.data.get("users"))
-
-            board.save()
 
             board = BoardSerializer(board).data
 
